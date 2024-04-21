@@ -130,6 +130,9 @@ run_*
 test_indexer_grpc_*.yaml
 test_indexer_grpc/*
 
+# env file for direnv
+.envrc
+
 # ignore compiler artifacts
 *.dot
 *.bytecode
