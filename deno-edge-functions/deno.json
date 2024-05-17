@@ -1,0 +1,10 @@
+{
+  "deploy": {
+    "project": "a408bd29-b879-473a-8c7e-a4fccd8f6238",
+    "exclude": [
+      "**/node_modules"
+    ],
+    "include": [],
+    "entrypoint": "map_manager.tsx"
+  }
+}
