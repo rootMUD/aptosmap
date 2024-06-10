@@ -103,27 +103,123 @@ module supermap::map_manager {
     // see the hero guide: 
     // > https://mp.weixin.qq.com/s/P7VogEWxp-qGpIfaUPPARQ
     // mint a map
-    public entry fun mint_map(owner: &signer, name: String, description: String, map: String, uri: String) {
+    public entry fun mint_map(owner: &signer, name: String, description: String, uri: String, map_size: u64, map: vector<u8>) acquires State {
         // TODO: mint a map here
         // * map is an nft
         // * set uri as the nft's uri.
         // * set size and map as the properties of the nft.
         // * also: there should be place to set 2d example uri of the map and 3d example uri of the map.
+
+        // generate resource acct
+        let state = borrow_global_mut<State>(@supermap);
+        let resource_account = account::create_signer_with_capability(&state.signer_cap);
+
+        let constructor_ref = token::create_named_token(
+            &resource_account,
+            string::utf8(MAP_COLLECTION_NAME),
+            description,
+            name,
+            option::none(),
+            uri,
+        );
+        let token_signer = object::generate_signer(&constructor_ref);
+
+        // <-- create properties
+        let property_mutator_ref = property_map::generate_mutator_ref(&constructor_ref); 
+        let properties = property_map::prepare_input(vector[], vector[], vector[]);
+
+        property_map::init(&constructor_ref, properties);
+
+        property_map::add_typed<u64>(
+            &property_mutator_ref,
+            string::utf8(b"size"),
+            map_size,
+        );
+        property_map::add_typed<vector<u8>>(
+            &property_mutator_ref,
+            string::utf8(b"map"),
+            map,
+        );
+        // create properties -->
+
+        let map_obj = Map {
+            map_size,
+            map,
+            property_mutator_ref,
+        };
+        move_to(&token_signer, map_obj);
+
+        // move to creator
+
+        let transfer_ref = object::generate_transfer_ref(&constructor_ref);
+        let creator_address = signer::address_of(owner);
+        object::transfer_with_ref(object::generate_linear_transfer_ref(&transfer_ref), creator_address);
+
+        // Emit a new mintEvent
+        let event = MintMapEvents {
+            name,
+            description, 
+            creator: creator_address,
+            event_timestamp: timestamp::now_seconds()   
+        };
+        event::emit_event(&mut state.mint_map_events, event);
     }
     
-    public entry fun update_map(owner: &signer, name: String, description: String, map: String, uri: String) {
+    public entry fun update_map(owner: &signer, name: String, map_size: u64, map: vector<u8>) acquires Map {
         // TODO: update the map here
         // Only signer_cap owner could do this.
         // Will update line by line in the future.
+
+        // generate resource acct
+        let resource_account_addr = get_resource_account_address();
+
+        // get map obj
+        let map_address = token::create_token_address(
+            &resource_account_addr,
+            &string::utf8(MAP_COLLECTION_NAME),
+            &name,
+        );
+        let map_obj = object::address_to_object<Map>(map_address);
+
+        // validate owner
+        let creator_address = signer::address_of(owner);
+        assert!(object::is_owner(map_obj, creator_address), ENOT_MAP_OWNER);
+
+        // update map property
+        let map_struct = borrow_global_mut<Map>(map_address);
+        property_map::update_typed(
+            &map_struct.property_mutator_ref,
+            &string::utf8(b"size"),
+            map_size,
+        );
+        property_map::update_typed(
+            &map_struct.property_mutator_ref,
+            &string::utf8(b"map"),
+            map,
+        );
+
+        // update map object
+        map_struct.map_size = map_size;
+        map_struct.map = map;
     }
 
     #[view]
-    public fun read_element(owner: &signer, map: Object<Map>, x: u64, y: u64): u8 {
+    public fun read_element(map_obj: Object<Map>, x: u64, y: u64): u8 acquires Map {
         // TODO: return the elemnt of the map
-        0
+        let map_address = object::object_address(&map_obj);
+        let map_struct = borrow_global<Map>(map_address);
+        let element_idx = map_struct.map_size * y + x;
+        *vector::borrow<u8>(&map_struct.map, element_idx)
     }
 
-    // TODO: check the map.
-    // #[view]
-    // public fun view_map_by_object(map_obj: Object<Map>): Map acquires Map {
+    #[view]
+    public fun view_map_by_object(map_obj: Object<Map>): Map acquires Map {
+        let map_address = object::object_address(&map_obj);
+        move_from<Map>(map_address)
+    }
+
+
+    inline fun get_resource_account_address(): address {
+        account::create_resource_address(&@supermap, STATE_SEED)
+    }
 }
