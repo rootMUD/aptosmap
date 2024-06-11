@@ -1,23 +1,15 @@
 module supermap::map_manager {
     use aptos_framework::account::{Self, SignerCapability};
-    use aptos_framework::aptos_account;
     use aptos_framework::event;
-    use aptos_framework::object::{Self, ConstructorRef, Object};
+    use aptos_framework::object::{Self, Object};
     use aptos_framework::timestamp;
-    use aptos_std::string_utils::{Self};
     use aptos_std::simple_map::{Self, SimpleMap};
     use aptos_token_objects::collection;
     use aptos_token_objects::token;
     use aptos_token_objects::property_map;
     use std::option;
-    use std::signer::address_of;
     use std::signer;
     use std::string::{Self, String};
-
-    // coin
-    use aptos_framework::coin::Coin;
-    use aptos_framework::coin;
-    use aptos_framework::aptos_coin::AptosCoin;
 
     // vector
     use std::vector;
@@ -63,7 +55,7 @@ module supermap::map_manager {
         // it should be a square.
         map_size: u64, 
         // use vector<u8> to represent the map
-        map: vector<u8>,   
+        map: vector<vector<u8>>,   
         property_mutator_ref: property_map::MutatorRef,        
     }
 
@@ -103,7 +95,7 @@ module supermap::map_manager {
     // see the hero guide: 
     // > https://mp.weixin.qq.com/s/P7VogEWxp-qGpIfaUPPARQ
     // mint a map
-    public entry fun mint_map(owner: &signer, name: String, description: String, uri: String, map_size: u64, map: vector<u8>) acquires State {
+    public entry fun mint_map(owner: &signer, name: String, description: String, uri: String, map_size: u64, map: vector<vector<u8>>) acquires State {
         // TODO: mint a map here
         // * map is an nft
         // * set uri as the nft's uri.
@@ -135,7 +127,7 @@ module supermap::map_manager {
             string::utf8(b"size"),
             map_size,
         );
-        property_map::add_typed<vector<u8>>(
+        property_map::add_typed<vector<vector<u8>>>(
             &property_mutator_ref,
             string::utf8(b"map"),
             map,
@@ -165,7 +157,7 @@ module supermap::map_manager {
         event::emit_event(&mut state.mint_map_events, event);
     }
     
-    public entry fun update_map(owner: &signer, name: String, map_size: u64, map: vector<u8>) acquires Map {
+    public entry fun update_map(owner: &signer, name: String, map_size: u64, map: vector<vector<u8>>) acquires Map {
         // TODO: update the map here
         // Only signer_cap owner could do this.
         // Will update line by line in the future.
@@ -208,8 +200,8 @@ module supermap::map_manager {
         // TODO: return the elemnt of the map
         let map_address = object::object_address(&map_obj);
         let map_struct = borrow_global<Map>(map_address);
-        let element_idx = map_struct.map_size * y + x;
-        *vector::borrow<u8>(&map_struct.map, element_idx)
+        let arr = *vector::borrow<vector<u8>>(&map_struct.map, x);
+        *vector::borrow<u8>(&arr, y)
     }
 
     #[view]
