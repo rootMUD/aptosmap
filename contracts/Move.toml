@@ -4,10 +4,6 @@ version = "1.0.0"
 authors = []
 
 [addresses]
-std = "0x1"
-aptos_std = "0x1"
-aptos_framework = "0x1"
-my_addr = "0x17be410b9e6d2a95f9d73fabfee0bbdda38a7cc65d853cd74b222cb7269adfa1"
 supermap = "_"
 
 [dev-addresses]
@@ -29,3 +25,6 @@ rev = "mainnet"
 subdir = "aptos-move/framework/aptos-stdlib"
 
 [dev-dependencies]
+
+
+# aptos move publish --named-addresses supermap=default

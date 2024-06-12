@@ -54,8 +54,8 @@ module supermap::map_manager {
     struct Map has key {
         // it should be a square.
         map_size: u64, 
-        // use vector<u8> to represent the map
-        map: vector<vector<u8>>,   
+        // use vector<u64> to represent the map
+        map: vector<vector<u64>>,   
         property_mutator_ref: property_map::MutatorRef,        
     }
 
@@ -95,7 +95,7 @@ module supermap::map_manager {
     // see the hero guide: 
     // > https://mp.weixin.qq.com/s/P7VogEWxp-qGpIfaUPPARQ
     // mint a map
-    public entry fun mint_map(owner: &signer, name: String, description: String, uri: String, map_size: u64, map: vector<vector<u8>>) acquires State {
+    public entry fun mint_map(owner: &signer, name: String, description: String, uri: String, map_size: u64, map: vector<vector<u64>>) acquires State {
         // TODO: mint a map here
         // * map is an nft
         // * set uri as the nft's uri.
@@ -103,7 +103,8 @@ module supermap::map_manager {
         // * also: there should be place to set 2d example uri of the map and 3d example uri of the map.
 
         // generate resource acct
-        let state = borrow_global_mut<State>(@supermap);
+        let state = borrow_global_mut<State>(get_resource_account_address());
+        let map_id = state.last_map_id + 1;
         let resource_account = account::create_signer_with_capability(&state.signer_cap);
 
         let constructor_ref = token::create_named_token(
@@ -127,11 +128,6 @@ module supermap::map_manager {
             string::utf8(b"size"),
             map_size,
         );
-        property_map::add_typed<vector<vector<u8>>>(
-            &property_mutator_ref,
-            string::utf8(b"map"),
-            map,
-        );
         // create properties -->
 
         let map_obj = Map {
@@ -142,10 +138,15 @@ module supermap::map_manager {
         move_to(&token_signer, map_obj);
 
         // move to creator
-
         let transfer_ref = object::generate_transfer_ref(&constructor_ref);
         let creator_address = signer::address_of(owner);
         object::transfer_with_ref(object::generate_linear_transfer_ref(&transfer_ref), creator_address);
+
+        // Update global state
+        let map_address = signer::address_of(&token_signer);
+        simple_map::add(&mut state.maps, map_id, map_address);
+
+        state.last_map_id = map_id;
 
         // Emit a new mintEvent
         let event = MintMapEvents {
@@ -157,7 +158,7 @@ module supermap::map_manager {
         event::emit_event(&mut state.mint_map_events, event);
     }
     
-    public entry fun update_map(owner: &signer, name: String, map_size: u64, map: vector<vector<u8>>) acquires Map {
+    public entry fun update_map(owner: &signer, name: String, map_size: u64, map: vector<vector<u64>>) acquires Map {
         // TODO: update the map here
         // Only signer_cap owner could do this.
         // Will update line by line in the future.
@@ -184,11 +185,6 @@ module supermap::map_manager {
             &string::utf8(b"size"),
             map_size,
         );
-        property_map::update_typed(
-            &map_struct.property_mutator_ref,
-            &string::utf8(b"map"),
-            map,
-        );
 
         // update map object
         map_struct.map_size = map_size;
@@ -196,12 +192,12 @@ module supermap::map_manager {
     }
 
     #[view]
-    public fun read_element(map_obj: Object<Map>, x: u64, y: u64): u8 acquires Map {
+    public fun read_element(map_obj: Object<Map>, x: u64, y: u64): u64 acquires Map {
         // TODO: return the elemnt of the map
         let map_address = object::object_address(&map_obj);
         let map_struct = borrow_global<Map>(map_address);
-        let arr = *vector::borrow<vector<u8>>(&map_struct.map, x);
-        *vector::borrow<u8>(&arr, y)
+        let arr = *vector::borrow<vector<u64>>(&map_struct.map, x);
+        *vector::borrow<u64>(&arr, y)
     }
 
     #[view]
@@ -210,6 +206,12 @@ module supermap::map_manager {
         move_from<Map>(map_address)
     }
 
+    #[view]
+    public fun view_map_by_id(map_id: u64): Map acquires State, Map {
+        let state = borrow_global<State>(get_resource_account_address());
+        let map_address = *simple_map::borrow(&state.maps, &map_id);
+        move_from<Map>(map_address)
+    }
 
     inline fun get_resource_account_address(): address {
         account::create_resource_address(&@supermap, STATE_SEED)
