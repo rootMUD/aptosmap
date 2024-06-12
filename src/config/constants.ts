@@ -17,5 +17,5 @@ export const MODULE_URL=`https://explorer.aptoslabs.com/account/${  DAPP_ADDRESS
 export const ETH_SIGNER_URL="https://eth-signer-react-app.vercel.app/?msg=";
 export const APTOS_SIGNER_URL="https://aptos-signer.vercel.app/?msg="
 
-export const STATE_SEED = "hero_signer";
+export const STATE_SEED = "movecraft_signer";
 // use to gen resource account.
